@@ -10,10 +10,14 @@ st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>",
 # ---------------------- DIALOGFLOW SETUP ----------------------
 @st.cache_resource
 def get_session_client():
-    # Load credentials from Streamlit Secrets
-    credentials_info = st.secrets["gcp_service_account"]
-    credentials = service_account.Credentials.from_service_account_info(credentials_info)
-    return dialogflow.SessionsClient(credentials=credentials)
+    try:
+        # Load credentials from Streamlit Secrets
+        credentials_info = dict(st.secrets["gcp_service_account"])
+        credentials = service_account.Credentials.from_service_account_info(credentials_info)
+        return dialogflow.SessionsClient(credentials=credentials)
+    except Exception as e:
+        st.error(f"Error initializing Dialogflow client: {str(e)}")
+        return None
 
 session_client = get_session_client()
 
@@ -21,16 +25,22 @@ PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
 SESSION_ID = "user123"
 LANGUAGE_CODE = "en"
 
-session = session_client.session_path(PROJECT_ID, SESSION_ID)
-
 def get_response(text):
     """Send user input to Dialogflow and return bot's response"""
-    text_input = dialogflow.TextInput(text=text, language_code=LANGUAGE_CODE)
-    query_input = dialogflow.QueryInput(text=text_input)
-    response = session_client.detect_intent(
-        request={"session": session, "query_input": query_input}
-    )
-    return response.query_result.fulfillment_text
+    try:
+        if session_client is None:
+            return "Sorry, chatbot service is currently unavailable."
+        
+        session = session_client.session_path(PROJECT_ID, SESSION_ID)
+        text_input = dialogflow.TextInput(text=text, language_code=LANGUAGE_CODE)
+        query_input = dialogflow.QueryInput(text=text_input)
+        response = session_client.detect_intent(
+            request={"session": session, "query_input": query_input}
+        )
+        return response.query_result.fulfillment_text
+    except Exception as e:
+        st.error(f"Error getting response from Dialogflow: {str(e)}")
+        return "Sorry, I encountered an error. Please try again."
 
 # ---------------------- CUSTOM CSS ----------------------
 st.markdown("""
@@ -93,4 +103,4 @@ if submit_button and user_input.strip():
     st.session_state.messages.append({"sender": "bot", "text": bot_response})
 
     # Refresh the chat display
-    st.experimental_rerun()
+    st.rerun()

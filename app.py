@@ -8,7 +8,7 @@ from google.oauth2 import service_account
 credentials = service_account.Credentials.from_service_account_info(
     st.secrets["gcp_service_account"]
 )
-session_client = dialogflow.SessionsClient(credentials=credentials)
+
 
 st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layout="centered")
 st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>", unsafe_allow_html=True)
@@ -89,3 +89,4 @@ if submit_button and user_input.strip():
 
     # Refresh the chat display
     st.experimental_rerun()
+

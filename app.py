@@ -1,7 +1,7 @@
 import streamlit as st
-import json
-from google.cloud import dialogflow_v2 as dialogflow
+import dialogflow
 from google.oauth2 import service_account
+import json
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layout="centered")
@@ -14,13 +14,12 @@ def get_session_client():
         # Load credentials from Streamlit Secrets
         credentials_info = dict(st.secrets["gcp_service_account"])
         credentials = service_account.Credentials.from_service_account_info(credentials_info)
-        return dialogflow.SessionsClient(credentials=credentials)
+        return credentials
     except Exception as e:
-        st.error(f"Error initializing Dialogflow client: {str(e)}")
+        st.error(f"Error initializing credentials: {str(e)}")
         return None
 
-session_client = get_session_client()
-
+credentials = get_session_client()
 PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
 SESSION_ID = "user123"
 LANGUAGE_CODE = "en"
@@ -28,15 +27,16 @@ LANGUAGE_CODE = "en"
 def get_response(text):
     """Send user input to Dialogflow and return bot's response"""
     try:
-        if session_client is None:
+        if credentials is None:
             return "Sorry, chatbot service is currently unavailable."
         
+        session_client = dialogflow.SessionsClient(credentials=credentials)
         session = session_client.session_path(PROJECT_ID, SESSION_ID)
-        text_input = dialogflow.TextInput(text=text, language_code=LANGUAGE_CODE)
-        query_input = dialogflow.QueryInput(text=text_input)
-        response = session_client.detect_intent(
-            request={"session": session, "query_input": query_input}
-        )
+        
+        text_input = dialogflow.types.TextInput(text=text, language_code=LANGUAGE_CODE)
+        query_input = dialogflow.types.QueryInput(text=text_input)
+        
+        response = session_client.detect_intent(session=session, query_input=query_input)
         return response.query_result.fulfillment_text
     except Exception as e:
         st.error(f"Error getting response from Dialogflow: {str(e)}")
@@ -77,7 +77,6 @@ st.markdown("""
 # ---------------------- SESSION STATE ----------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    # Greeting message
     st.session_state.messages.append({"sender": "bot", "text": "👋 Hello Sir/Ma'am! How can I help you today?"})
 
 # ---------------------- DISPLAY CHAT ----------------------
@@ -95,12 +94,7 @@ with st.form(key="chat_form", clear_on_submit=True):
     submit_button = st.form_submit_button("Send")
 
 if submit_button and user_input.strip():
-    # Add user message
     st.session_state.messages.append({"sender": "user", "text": user_input})
-
-    # Get bot response from Dialogflow
     bot_response = get_response(user_input)
     st.session_state.messages.append({"sender": "bot", "text": bot_response})
-
-    # Refresh the chat display
     st.rerun()

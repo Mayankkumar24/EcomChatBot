@@ -1,33 +1,39 @@
 import streamlit as st
 from google.cloud import dialogflow_v2 as dialogflow
-import os
-import json
 from google.oauth2 import service_account
 
-# --- Google Credentials ---
-credentials = service_account.Credentials.from_service_account_info(
-    st.secrets["gcp_service_account"]
-)
-
-
+# ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layout="centered")
 st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>", unsafe_allow_html=True)
 
-# --- Dialogflow Setup ---
-project_id = "plucky-shore-475210-n7"
-session_id = "user123"
-language_code = "en"
+# ---------------------- DIALOGFLOW SETUP ----------------------
+@st.cache_resource
+def get_session_client():
+    credentials = service_account.Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"]
+    )
+    return dialogflow.SessionsClient(credentials=credentials)
 
-session_client = dialogflow.SessionsClient()
-session = session_client.session_path(project_id, session_id)
+session_client = get_session_client()
+
+PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
+SESSION_ID = "user123"
+LANGUAGE_CODE = "en"
+
+session = session_client.session_path(PROJECT_ID, SESSION_ID)
+
 
 def get_response(text):
-    text_input = dialogflow.TextInput(text=text, language_code=language_code)
+    """Send user input to Dialogflow and return bot's response"""
+    text_input = dialogflow.TextInput(text=text, language_code=LANGUAGE_CODE)
     query_input = dialogflow.QueryInput(text=text_input)
-    response = session_client.detect_intent(request={"session": session, "query_input": query_input})
+    response = session_client.detect_intent(
+        request={"session": session, "query_input": query_input}
+    )
     return response.query_result.fulfillment_text
 
-# --- CSS for Chat Bubbles ---
+
+# ---------------------- CUSTOM CSS ----------------------
 st.markdown("""
 <style>
 .chat-container {
@@ -59,13 +65,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- Session State Initialization ---
+# ---------------------- SESSION STATE ----------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
     # Greeting message
     st.session_state.messages.append({"sender": "bot", "text": "👋 Hello Sir/Ma'am! How can I help you today?"})
 
-# --- Display Chat History ---
+# ---------------------- DISPLAY CHAT ----------------------
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
 for msg in st.session_state.messages:
     if msg["sender"] == "user":
@@ -74,7 +80,7 @@ for msg in st.session_state.messages:
         st.markdown(f"<div class='bot-msg'>{msg['text']}</div>", unsafe_allow_html=True)
 st.markdown("</div>", unsafe_allow_html=True)
 
-# --- User Input ---
+# ---------------------- USER INPUT ----------------------
 with st.form(key="chat_form", clear_on_submit=True):
     user_input = st.text_input("Type your message:", "")
     submit_button = st.form_submit_button("Send")
@@ -83,10 +89,9 @@ if submit_button and user_input.strip():
     # Add user message
     st.session_state.messages.append({"sender": "user", "text": user_input})
 
-    # Get bot reply
+    # Get bot response from Dialogflow
     bot_response = get_response(user_input)
     st.session_state.messages.append({"sender": "bot", "text": bot_response})
 
     # Refresh the chat display
     st.experimental_rerun()
-

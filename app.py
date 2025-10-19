@@ -1,4 +1,5 @@
 import streamlit as st
+import json
 from google.cloud import dialogflow_v2 as dialogflow
 from google.oauth2 import service_account
 
@@ -9,9 +10,9 @@ st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>",
 # ---------------------- DIALOGFLOW SETUP ----------------------
 @st.cache_resource
 def get_session_client():
-    credentials = service_account.Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"]
-    )
+    # Load credentials from Streamlit Secrets
+    credentials_info = st.secrets["gcp_service_account"]
+    credentials = service_account.Credentials.from_service_account_info(credentials_info)
     return dialogflow.SessionsClient(credentials=credentials)
 
 session_client = get_session_client()
@@ -22,7 +23,6 @@ LANGUAGE_CODE = "en"
 
 session = session_client.session_path(PROJECT_ID, SESSION_ID)
 
-
 def get_response(text):
     """Send user input to Dialogflow and return bot's response"""
     text_input = dialogflow.TextInput(text=text, language_code=LANGUAGE_CODE)
@@ -31,7 +31,6 @@ def get_response(text):
         request={"session": session, "query_input": query_input}
     )
     return response.query_result.fulfillment_text
-
 
 # ---------------------- CUSTOM CSS ----------------------
 st.markdown("""

@@ -68,7 +68,7 @@ def create_jwt_assertion(sa_info):
     
     return f"{header_b64}.{payload_b64}.{signature}"
 
-PROJECT_ID = st.secrets["gcp_service_account"]["plucky-shore-475210-n7"]
+PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
 SESSION_ID = "user123"
 LANGUAGE_CODE = "en"
 
@@ -173,3 +173,4 @@ with st.sidebar:
         st.write(f"Project: {st.secrets['gcp_service_account']['project_id']}")
     else:
         st.error("❌ GCP credentials missing")
+

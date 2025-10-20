@@ -1,112 +1,37 @@
 import streamlit as st
-import requests
-import json
-import time
-import datetime
+from google.cloud import dialogflow_v2 as dialogflow
+from google.oauth2 import service_account
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layout="centered")
 st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>", unsafe_allow_html=True)
 
 # ---------------------- DIALOGFLOW SETUP ----------------------
-@st.cache_data(ttl=3500)  # Cache for 58 minutes (tokens expire in 1 hour)
-def get_access_token():
-    """Get access token using service account credentials"""
-    try:
-        sa_info = dict(st.secrets["gcp_service_account"])
-        
-        # Prepare the request for OAuth2 token
-        token_url = "https://oauth2.googleapis.com/token"
-        token_data = {
-            'grant_type': 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-            'assertion': create_jwt_assertion(sa_info)
-        }
-        
-        response = requests.post(token_url, data=token_data)
-        response.raise_for_status()
-        
-        token_info = response.json()
-        return token_info['access_token']
-        
-    except Exception as e:
-        st.error(f"Error getting access token: {str(e)}")
-        return None
+@st.cache_resource
+def get_session_client():
+    credentials = service_account.Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"]
+    )
+    return dialogflow.SessionsClient(credentials=credentials)
 
-def create_jwt_assertion(sa_info):
-    """Create JWT assertion manually without external libraries"""
-    import base64
-    import hashlib
-    import hmac
-    
-    header = {
-        "alg": "RS256",
-        "typ": "JWT"
-    }
-    
-    current_time = int(time.time())
-    expiration_time = current_time + 3600
-    
-    payload = {
-        "iss": sa_info['client_email'],
-        "sub": sa_info['client_email'],
-        "aud": "https://oauth2.googleapis.com/token",
-        "iat": current_time,
-        "exp": expiration_time,
-        "scope": "https://www.googleapis.com/auth/cloud-platform"
-    }
-    
-    # Encode header and payload
-    header_b64 = base64.urlsafe_b64encode(json.dumps(header).encode()).decode().rstrip('=')
-    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip('=')
-    
-    # Create signature (this is a simplified version - in practice you'd need proper RSA signing)
-    message = f"{header_b64}.{payload_b64}"
-    
-    # For now, we'll use a direct approach with the private key
-    # Note: This is a simplified version. In production, you'd use proper RSA signing
-    signature = "dummy_signature"  # This would need proper RSA implementation
-    
-    return f"{header_b64}.{payload_b64}.{signature}"
+session_client = get_session_client()
 
 PROJECT_ID = st.secrets["gcp_service_account"]["project_id"]
 SESSION_ID = "user123"
 LANGUAGE_CODE = "en"
 
+session = session_client.session_path(PROJECT_ID, SESSION_ID)
+
+
 def get_response(text):
-    """Send user input to Dialogflow using REST API"""
-    try:
-        access_token = get_access_token()
-        if not access_token:
-            return "Sorry, authentication failed. Please check your credentials."
-        
-        url = f"https://dialogflow.googleapis.com/v2/projects/{plucky-shore-475210-n7}/agent/sessions/{SESSION_ID}:detectIntent"
-        
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-        
-        data = {
-            "queryInput": {
-                "text": {
-                    "text": text,
-                    "languageCode": LANGUAGE_CODE
-                }
-            }
-        }
-        
-        response = requests.post(url, headers=headers, json=data)
-        response.raise_for_status()
-        
-        result = response.json()
-        return result['queryResult']['fulfillmentText']
-        
-    except requests.exceptions.RequestException as e:
-        st.error(f"Network error: {str(e)}")
-        return "Sorry, I'm having trouble connecting to the service."
-    except Exception as e:
-        st.error(f"Error getting response: {str(e)}")
-        return "Sorry, I encountered an error. Please try again."
+    """Send user input to Dialogflow and return bot's response"""
+    text_input = dialogflow.TextInput(text=text, language_code=LANGUAGE_CODE)
+    query_input = dialogflow.QueryInput(text=text_input)
+    response = session_client.detect_intent(
+        request={"session": session, "query_input": query_input}
+    )
+    return response.query_result.fulfillment_text
+
 
 # ---------------------- CUSTOM CSS ----------------------
 st.markdown("""
@@ -143,7 +68,8 @@ st.markdown("""
 # ---------------------- SESSION STATE ----------------------
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"sender": "bot", "text": "👋 Hello! How can I help you today?"})
+    # Greeting message
+    st.session_state.messages.append({"sender": "bot", "text": "👋 Hello Sir/Ma'am! How can I help you today?"})
 
 # ---------------------- DISPLAY CHAT ----------------------
 st.markdown("<div class='chat-container'>", unsafe_allow_html=True)
@@ -160,17 +86,12 @@ with st.form(key="chat_form", clear_on_submit=True):
     submit_button = st.form_submit_button("Send")
 
 if submit_button and user_input.strip():
+    # Add user message
     st.session_state.messages.append({"sender": "user", "text": user_input})
+
+    # Get bot response from Dialogflow
     bot_response = get_response(user_input)
     st.session_state.messages.append({"sender": "bot", "text": bot_response})
-    st.rerun()
 
-# Add a debug section to check if secrets are loading
-with st.sidebar:
-    st.write("Debug Info:")
-    if "gcp_service_account" in st.secrets:
-        st.success("✅ GCP credentials loaded")
-        st.write(f"Project: {st.secrets['gcp_service_account']['project_id']}")
-    else:
-        st.error("❌ GCP credentials missing")
-
+    # Refresh the chat display
+    st.experimental_rerun()

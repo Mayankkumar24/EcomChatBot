@@ -100,6 +100,8 @@ if submit_button and user_input.strip():
 
     # Refresh the chat display
     st.experimental_rerun()
+st.write("✅ Google Dialogflow imported successfully!")
+
 
 
 

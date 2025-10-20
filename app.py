@@ -1,5 +1,4 @@
 import streamlit as st
-# from google.cloud import dialogflow_v2 as dialogflow
 from google.oauth2 import service_account
 from google.cloud import dialogflow_v2 as dialogflow
 
@@ -8,7 +7,7 @@ st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layo
 st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>", unsafe_allow_html=True)
 
 # ---------------------- DIALOGFLOW SETUP ----------------------
-@st.cache_resource
+@st.cache_data(show_spinner=False)
 def get_session_client():
     credentials = service_account.Credentials.from_service_account_info(
         st.secrets["gcp_service_account"]
@@ -96,4 +95,5 @@ if submit_button and user_input.strip():
 
     # Refresh the chat display
     st.experimental_rerun()
+
 

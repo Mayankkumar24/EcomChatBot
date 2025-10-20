@@ -1,8 +1,10 @@
+import os
+os.system("pip install google-auth google-cloud-dialogflow google-api-core protobuf grpcio grpcio-status --quiet")
+
 import streamlit as st
 from google.oauth2 import service_account
 from google.cloud import dialogflow_v2 as dialogflow
-import os
-os.system("pip install google-auth google-cloud-dialogflow==2.42.0 google-api-core==2.17.1")
+
 
 
 # ---------------------- PAGE CONFIG ----------------------
@@ -98,6 +100,7 @@ if submit_button and user_input.strip():
 
     # Refresh the chat display
     st.experimental_rerun()
+
 
 
 

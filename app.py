@@ -1,6 +1,7 @@
 import streamlit as st
-from google.cloud import dialogflow_v2 as dialogflow
+# from google.cloud import dialogflow_v2 as dialogflow
 from google.oauth2 import service_account
+from google.cloud import dialogflow_v2 as dialogflow
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layout="centered")
@@ -95,3 +96,4 @@ if submit_button and user_input.strip():
 
     # Refresh the chat display
     st.experimental_rerun()
+

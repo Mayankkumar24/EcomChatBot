@@ -3,12 +3,23 @@ import streamlit as st
 import dialogflow
 from google.oauth2 import service_account
 from google.api_core.exceptions import InvalidArgument
+import json
 
 
 
 # ---------------------- PAGE CONFIG ----------------------
 st.set_page_config(page_title="Customer Support Chatbot", page_icon="💬", layout="centered")
 st.markdown("<h2 style='text-align:center;'>💬 Customer Support Chatbot</h2>", unsafe_allow_html=True)
+
+# Load service account from environment variable and write to file
+gcp_json = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+if gcp_json:
+    with open("gcp_key.json", "w") as f:
+        f.write(gcp_json)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "gcp_key.json"
+else:
+    st.warning("GCP_SERVICE_ACCOUNT_JSON not found in environment — Dialogflow won't work.")
+
 
 # ---------------------- DIALOGFLOW SETUP ----------------------
 @st.cache_data(show_spinner=False)
@@ -100,6 +111,7 @@ if submit_button and user_input.strip():
     # Refresh the chat display
     st.experimental_rerun()
 st.write("✅ Google Dialogflow imported successfully!")
+
 
 
 

@@ -1,7 +1,8 @@
 import os
 import streamlit as st
+import dialogflow
 from google.oauth2 import service_account
-from google.cloud import dialogflow_v2 as dialogflow
+from google.api_core.exceptions import InvalidArgument
 
 
 
@@ -99,6 +100,7 @@ if submit_button and user_input.strip():
     # Refresh the chat display
     st.experimental_rerun()
 st.write("✅ Google Dialogflow imported successfully!")
+
 
 
 

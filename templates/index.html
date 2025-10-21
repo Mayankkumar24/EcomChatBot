@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Customer Support Chatbot</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: Arial, sans-serif; background:#f3f4f6; margin:0; padding:20px; }
+    .app { max-width:720px; margin:0 auto; background:white; border-radius:8px; padding:20px; box-shadow:0 4px 20px rgba(0,0,0,0.08); }
+    h1 { margin:0 0 10px 0; font-size:20px; }
+    #chatBox { height:400px; overflow-y:auto; border:1px solid #e5e7eb; padding:10px; border-radius:6px; background:#fbfdff; }
+    .msg { padding:8px 12px; margin:8px 0; border-radius:12px; display:inline-block; max-width:80%; }
+    .user { background:#DCF8C6; align-self:flex-end; float:right; clear:both; }
+    .bot { background:#E4E6EB; float:left; clear:both; }
+    .inputRow { display:flex; margin-top:12px; gap:8px; }
+    input[type="text"] { flex:1; padding:10px; border-radius:6px; border:1px solid #d1d5db; }
+    button { padding:10px 16px; border:none; border-radius:6px; background:#2563eb; color:white; cursor:pointer; }
+    .small { font-size:13px; color:#6b7280; margin-top:6px; }
+    .error { color: red; margin-bottom:10px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <h1>💬 Customer Support Chatbot</h1>
+    {% if init_error %}
+      <div class="error"><strong>Init error:</strong> {{ init_error }}</div>
+    {% endif %}
+    <div id="chatBox"></div>
+    <div class="inputRow">
+      <input id="userInput" type="text" placeholder="Type your message..." />
+      <button id="sendBtn">Send</button>
+    </div>
+    <div class="small">Powered by Dialogflow (server-side). Session id is stored in this page session.</div>
+  </div>
+
+  <script>
+    const chatBox = document.getElementById('chatBox');
+    const userInput = document.getElementById('userInput');
+    const sendBtn = document.getElementById('sendBtn');
+
+    // Simple session id per browser tab
+    const sessionId = 'sess-' + Math.random().toString(36).substring(2,9);
+
+    function appendMessage(text, cls) {
+      const d = document.createElement('div');
+      d.className = 'msg ' + cls;
+      d.innerText = text;
+      chatBox.appendChild(d);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    sendBtn.onclick = async () => {
+      const text = userInput.value.trim();
+      if (!text) return;
+      appendMessage(text, 'user');
+      userInput.value = '';
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({text, session_id: sessionId})
+        });
+        const data = await res.json();
+        if (res.ok) {
+          appendMessage(data.reply || '(no reply)', 'bot');
+        } else {
+          appendMessage('Error: ' + (data.error || data.detail || res.statusText), 'bot');
+        }
+      } catch (err) {
+        appendMessage('Network error: ' + err.message, 'bot');
+      }
+    };
+
+    userInput.addEventListener("keydown", function(e) {
+      if (e.key === "Enter") sendBtn.click();
+    });
+
+    // Greeting
+    appendMessage("👋 Hi! How can I help you today?", 'bot');
+  </script>
+</body>
+</html>
